@@ -1,0 +1,337 @@
+<!--Select takes one table and returns a table with fewer rows
+  and the same number of columns
+-->
+<sel value="store=73"/>
+<!--Willbe takes a table and returns a table with on additional column-->
+<!--Notice that each operation contains a value="" attribute that accepts an expression-->
+<willbe name="grossmargin" value="xsales-cost"/>
+<!--We can group both kinds of expressions together as "vector" expressions because each returns
+a vector
+  - <sel> returns a boolean vector that is used to eliminate rows
+  - <willbe> returns a vector of floats, ints, or text values (but only one)
+-->
+
+<!--Vector expressions can also use functions.
+  - Most 1010data functions return vectors (though not all)
+  - Some functions return vectors of booleans, which can be used for <sel> ops
+-->
+<sel value="between(date;20120201;20120228)"/>
+<!--Returns a vector of booleans-->
+<willbe name="avg_per_trans" value="g_avg(customer transid;;grossmargin)" format="type:currency"/>
+<!--g_avg in this <willbe> value expression returns a new vector of values of the same type
+The values are determined by the output of the expression
+-->
+
+ <!--g_functions can also be used for selection (if they take a boolean)-->
+<sel value="g_first1(customer transid;;)"/>
+<!--Colord also takes a table and returns a table with fewer columns
+and the same number of rows-->
+<colord cols="transid,date,avg_per_trans"/>
+<!--Should final results-->
+
+<sel value="store=73"/>
+<willbe name="grossmargin" value="sales-cost"/>
+<sel value="between(date;20120201;20120228)"/>
+<willbe name="avg_per_trans" value="g_avg(customer transid;;grossmargin)" format="type:currency"/>
+<sel value="g_first1(customer transid;;)"/>
+<colord cols="transid,date,avg_per_trans"/>
+
+<!--Drop back to power point for anatomy of vector expressions-->
+
+<!--Blocks provide variables, but in order for them to work, we need a way to think
+about these values
+
+So we have scalar expressions
+-->
+<!--Run this. Expand it-->
+<block>
+  <sel value="store=73"/>
+</block>
+<!--Blocks start with scalar expressions-->
+
+<block>
+  <sel value="store={73}"/>
+</block>
+
+<!--Can use logical operators for expressions that result in scalars-->
+<block>
+  <sel value="store={73+6}"/>
+</block>
+
+
+<!--
+  - Blocks provide variables for storing scalar values.
+  - Scarlar variables hold values
+  - Values can be referenced in scalar expressions using @var syntax
+-->
+
+<!--A basic variable reference-->
+<block store_num="73">
+  <sel value="store={@store_num}"/>
+</block>
+
+<!--You using two scalar expressions for one vector expression:-->
+<block col="store" comp_value="73">
+  <sel value="{@col}={@comp_value}"/>
+</block>
+
+<!--You can also use scalar expressions for function arguments:-->
+
+<block column="date" start_value="20140201" end_value="20140228">
+  <sel value="between({@column};{@start_value};{@end_value})"/>
+</block>
+
+<!--Make a point to make talk about expansion-->
+
+<!--You can give blocks names-->
+<block name="example" column="date" start_value="20140201" end_value="20140228">
+  <sel value="between({@column};{@start_value};{@end_value})"/>
+</block>
+
+<!--You can put blocks in a library-->
+<library>
+  <block name="example" column="date" start_value="20140201" end_value="20140228">
+    <sel value="between({@column};{@start_value};{@end_value})"/>
+  </block>
+</library>
+
+<!--And you can insert them in queries-->
+<insert block="example" start_value="20140301" end_value="20140331"/>
+
+
+<!--Full example-->
+<library>
+  <block name="example" column="date" start_value="20140201" end_value="20140228">
+    <sel value="between({@column};{@start_value};{@end_value})"/>
+  </block>
+</library>
+<insert block="example"/>
+
+<!--replace previous insert with:-->
+<insert block="example" start_value="20140301" end_value="20140331"/>
+
+<!--Generating code
+ - Blocks always expand to MDB operations and vector expressions
+ - In addition to substituting variable values in expressions, blocks can also
+   generate MDB operations in the form of XML tags
+ - Again, expressions and operations work together, only now it's scalar expressions
+   and block code that generates MDB ops
+
+
+   NOTE: Create a basic block with the tabulation below, then point out
+   that building tcols is somewhat tedious
+-->
+
+<defblock name="build_tabu" sources="" fun="">
+  <base table="certification.retail.salesdetail_customer"/>
+  <sel value="(date=20111217)"/>
+  <willbe name="grossmargin" value="xsales-cost"/>
+  <tabu label="Tabulation on Sales Detail" breaks="store">
+    <foreach col="{@sources}">
+      <tcol source="{@col}" fun="sum"/>
+    </foreach>
+  </tabu>
+</defblock>
+<insert block="build_tabu" sources="xsales,cost,grossmargin"/>
+
+<!--Expands to-->
+<base table=".db.certification_admin.certification.retail.salesdetail_customer"/>
+<sel value="(date=20111217)"/>
+<willbe name="grossmargin" value="xsales-cost"/>
+<tabu label="Tabulation on Sales Detail" breaks="store">
+  <tcol source="xsales" fun="sum"/>
+  <tcol source="cost" fun="sum"/>
+  <tcol source="grossmargin" fun="sum"/>
+</tabu>
+
+<!--
+  - <for> allows you to store the number of iterations in a variable and determine
+  that number programatically
+  - Some 1010data functions return scalar values
+  - These functions can be used to determine how many times the scalar loop executes
+-->
+
+<defblock name="variable_for" colnames="store;date;qty" values="73-20120603-2">
+  <base table="certification.retail.salesdetail_customer"/>
+  <for i="1" to="{strcount(@colnames;';')+1}">
+    <sel value="{strpick(@colnames;';';@i)}='{strpick(@values;'-';@i)}'"/>
+  </for>
+</defblock>
+<insert block="variable_for"/>
+
+
+<!--Starting code for conditionals-->
+<defblock name="basic_link" tab2="" col1="" col2="">
+  <base table="certification.retail.salesdetail_customer"/>
+  <link table2="{@tab2}" col="{@col1}" col2="{@col2}" suffix="_for"/>
+</defblock>
+<insert block="basic_link" tab2="certification.retail.products" col1="sku" col2="sku"/>
+
+
+<!--Version with one param for option and one conditional-->
+<defblock name="link_pass_option" option="">
+  <base table="certification.retail.salesdetail_customer"/>
+  <if test="{@option='store'}">
+    <then>
+      <set path="certification.retail.stores" col="store"/>
+    </then>
+    <else>
+      <set path="certification.retail.product" col="sku"/>
+    </else>
+  </if>
+  <link table2="{@path}" col="{@col}"/>
+</defblock>
+<insert block="link_pass_option" option="store"/>
+
+<!--With switch statement for more options-->
+<note type="base">Applied to table: certification.retail.calendar</note>
+<defblock name="link_pass_option_2" option="">
+  <base table="certification.retail.salesdetail_customer"/>
+  <switch>
+    <case when="{@option='store'}">
+      <set path="certification.retail.stores" col1="store" col2="store"/>
+    </case>
+    <case when="{@option='prod'}">
+      <set path="certification.retail.products" col1="sku" col2="sku"/>
+    </case>
+    <case when="{@option='calendar'}">
+      <set path="certification.retail.calendar" col1="date" col2="date"/>
+    </case>
+    <else>
+      <signal msg="'Invalid option. Please enter store, prod, or calendar'"/>
+    </else>
+  </switch>
+  <link table2="{@path}" col="{@col1}" col2="{@col2}" suffix="_foreign"/>
+</defblock>
+<insert block="link_pass_option_2" option="__option__"/>
+
+
+
+<!--What do we mean by scalar data structures?
+
+  - Lists and packages are useful for storing scalar values that are related to each other
+  - Lists are integer indexed and order dependent
+  - Packages are dictionaries whose data is accessed via keys
+  - Lists can be passed to for and for each loops directly
+  - Packages can't
+-->
+<!--Let's refactor this code using lists-->
+
+<defblock name="variable_for" colnames="store;date;qty" values="73-20120603-2">
+  <base table="certification.retail.salesdetail_customer"/>
+  <set colnames="{str_to_lst(@colnames)}"/>
+  <for i="1" to="{lst_len(@colnames)}">
+    <sel value="{@colnames{@i}}='{@values{@i}}'"/>
+  </for>
+</defblock>
+<insert block="variable_for"/>
+
+
+<!--Refactored using lists-->
+<defblock name="variable_for" colnames="store;date;qty" values="73-20120603-2">
+  <base table="certification.retail.salesdetail_customer"/>
+  <set colnames="{str_to_lst(@colnames;';')}"/>
+  <set values="{str_to_lst(@values;'-')}"/>
+  <for i="1" to="{lst_len(@colnames)}">
+    <sel value="{@colnames.{@i}}='{@values.{@i}}'"/>
+  </for>
+</defblock>
+<insert block="variable_for"/>
+
+<!--Called with explicit lists-->
+
+<defblock name="variable_for" colnames="{'store' 'date' 'qty'}" values="{73 20120603 2}">
+  <base table="certification.retail.salesdetail_customer"/>
+  <for i="1" to="{lst_len(@colnames)}">
+    <sel value="{@colnames.{@i}}='{@values.{@i}}'"/>
+  </for>
+</defblock>
+<insert block="variable_for" colnames=""/>
+
+<!--With values as a package-->
+<defblock name="variable_for" colnames="{'store' 'date' 'qty'}"
+  values="{pkg('store' 'date' 'qty';73 20120603 2)}">
+  <base table="certification.retail.salesdetail_customer"/>
+  <for i="1" to="{lst_len(@colnames)}">
+    <sel value="{@colnames.{@i}}='{@values['{@colnames.{@i}}']}'"/>
+  </for>
+</defblock>
+<insert block="variable_for"/>
+
+<!--Proper way for looping through a package:-->
+<defblock name="variable_for" values="{pkg('store' 'date' 'qty';73 20120603 2)}">
+  <base table="certification.retail.salesdetail_customer"/>
+  <foreach colnames="{pkg_names(@values)}" tally="@i">
+    <sel value="{@colnames}='{@values.{@colnames}}'"/>
+  </foreach>
+</defblock>
+<insert block="variable_for"/>
+
+<!--<loop> time: transforming a table and using its output as an input
+For instance, we can get table paths from a directory, then merge the tables
+
+-->
+
+<loop with_="paths" mode_="concat">
+  <outer>
+    <directory folder="pub.doc.gov.county"/>
+    <sel value="path<>'pub.doc.gov.county.x2011''pub.doc.gov.county.x2012'"/>
+    <colord cols="path"/>
+  </outer>
+  <inner>
+    <merge table2="{@paths.path}" match="pad"/>
+  </inner>
+</loop>
+
+<!--
+Pick a category from the Product Master table and write a loop that will determine
+the top three selling stores for that category. Then, determine the top three selling items for
+that category in each store.
+-->
+
+<base table="certification.retail.salesdetail_customer"/>
+<loop with_="top" mode_="merge">
+  <outer>
+    <base table="certification.retail.salesdetail_customer"/>
+    <note type="link">The following link is to table: All Databases/Certification/Retail/Product Master</note>
+    <link table2="certification.retail.products" col="sku" col2="sku" type="include">
+      <sel value="deptdesc='BEVERAGE'"/>
+    </link>
+    <tabu breaks="store" label="Tabulation">
+      <tcol source="xsales" fun="sum" name="xsales"/>
+    </tabu>
+    <sort col="xsales" dir="down"/>
+    <sel value="i_<=3"/>
+    <colord cols="store"/>
+  </outer>
+  <inner>
+    <base table="certification.retail.salesdetail_customer"/>
+    <link table2="certification.retail.products" col="sku" col2="sku" type="include">
+      <sel value="deptdesc='BEVERAGE'"/>
+    </link>
+    <sel value="store={@top.store}"/>
+    <tabu breaks="sku">
+      <tcol source="xsales" fun="sum" name="xsales"/>
+    </tabu>
+    <willbe name="store" value="{@top.store}"/>
+    <sort col="xsales" dir="down"/>
+    <sel value="i_<=3"/>
+    <link table2="certification.retail.products" col="sku" cols="description"/>
+  </inner>
+</loop>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
