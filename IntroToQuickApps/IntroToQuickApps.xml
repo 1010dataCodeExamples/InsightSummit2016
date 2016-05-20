@@ -1,0 +1,66 @@
+<defblock name="sales_over_time">
+  <sel value="dept={@selection}"/>
+  <sel value="between(trans_date;{@start_date};{@end_date})"/>
+  <tabu label="Tabulation on Sales Detail" breaks="trans_date">
+    <break col="trans_date" sort="up"/>
+    <tcol source="xsales" fun="sum" label="Sum of`Extended`Sales"/>
+  </tabu>
+</defblock>
+<dynamic selection="19" start_date="20140101" end_date="20140114" width_of_label="75"
+ width_of_input="200" dept_name="DEPARTMENT">
+  <do value_="@dept_name" row_="1" col_="1" base_="pub.doc.retail.product">
+    <sel value="(dept={@selection})"/>
+    <sel value="g_first1(dept;;)"/>
+    <colord cols="deptdesc"/>
+  </do>
+  <layout arrange_="v" border_="10" background_="midnightblue">
+    <widget class_="dropdown" value_="@selection" base_="pub.doc.retail.product"
+     dropdownwidth_="250" inputwidth_="{@width_of_input}"
+     label_="Department" labelwidth_="{@width_of_label}">
+      <tabu label="Tabulation on Product Master" breaks="dept,deptdesc">
+        <break col="deptdesc" sort="up"/>
+        <tcol source="dept" fun="cnt" label="Count"/>
+      </tabu>
+      <colord cols="dept,deptdesc"/>
+    </widget>
+    <ignore>
+      <widget class_="text" text_="Selected item: {@selection}"/>
+    </ignore>
+    <widget class_="date" value_="@start_date" label_="Start date"
+     tovalue_="@end_date" labelwidth_="{@width_of_label}" tolabel_="End date"
+     tolabelwidth_="{@width_of_label}" arrange_="v"
+     inputwidth_="{@width_of_input}" toinputwidth_="{@width_of_input}"/>
+    <widget class_="button" type_="submit" text_="Run"/>
+  </layout>
+  <layout arrange_="v">
+    <layout type_="tabpanel">
+      <layout label_="Sales Over Time - Chart">
+        <widget class_="graphics" width_="900" base_="pub.doc.retail.salesdetail"
+         errmsg_="Enter a valid department" holdfor_="@start_date,@end_date"
+         invmsg_="Click Run when you are finished making your selections">
+          <insert block="sales_over_time"/>
+          <graphspec width="600" height="400" theme="materialblack">
+            <chart type="bar" title="Sales Over Time - Department {@selection} - {@dept_name}" samples="25">
+              <data x="trans_date" y="t0"/>
+              <ticks xrot="45"/>
+            </chart>
+            <style xaxissize="12" yaxissize="12"/>
+          </graphspec>
+        </widget>
+      </layout>
+      <layout label_="Sales Over Time - Grid">
+        <widget class_="grid" width_="900" base_="pub.doc.retail.salesdetail"
+         errmsg_="Enter a valid department" holdfor_="@start_date,@end_date"
+         invmsg_="Click Run when you are finished making your selections">
+          <insert block="sales_over_time"/>
+        </widget>
+      </layout>
+    </layout>
+    <widget class_="grid" width_="900" base_="pub.doc.retail.salesdetail"
+     errmsg_="Enter a valid department" holdfor_="@start_date,@end_date"
+     invmsg_="Click Run when you are finished making your selections">
+      <sel value="dept={@selection}"/>
+      <sel value="between(trans_date;{@start_date};{@end_date})"/>
+    </widget>
+  </layout>
+</dynamic>
